@@ -9,7 +9,7 @@
         "username": "tecnico1",
         "password": "123",
         "role": "tecnico",
-        "name": "Josinaldo Junho"
+        "name": "Josinaldo Junior"
     },
     {
         "username": "tecnico2",
@@ -23,4 +23,5 @@
         "role": "tecnico",
         "name": "Lucas Fabricio De Sousa Rodrigues"
     }
+
 ]
