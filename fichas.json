@@ -1,0 +1,518 @@
+{
+    "tecnico1": [
+        {
+            "data": "08/09/2025 12:53",
+            "periodo_referencia": "September/2025",
+            "avaliador": "Luciana",
+            "periodo_aplicado": {
+                "inicio": "30/05/2022",
+                "fim": "04/09/2025",
+                "indicadores": {
+                    "qtd": 4521,
+                    "espera_media": 50.97210743801653,
+                    "duracao_media": 29.4600858000858,
+                    "rating_media": 4.69620253164557
+                }
+            },
+            "competencias": {
+                "habilidade_tecnica_atendimento": {
+                    "nota": 8
+                },
+                "suporte_nivel_1": {
+                    "nota": 8
+                },
+                "suporte_nivel_2": {
+                    "nota": 7
+                },
+                "infra_nivel_1": {
+                    "nota": 7
+                },
+                "habilidade_tecnica_treinamento": {
+                    "nota": 8
+                },
+                "capacitacoes_ferramentas": {
+                    "nota": 8
+                },
+                "nota_final": 7.74,
+                "conceito": "Bom",
+                "estrelinhas": "⭐⭐⭐",
+                "nota_competencias_pond": 7.67
+            },
+            "desempenho_ferramentas": {
+                "pesos": {
+                    "AtendSaúde": 20,
+                    "AtendeEndemias": 5,
+                    "PEC": 20,
+                    "eSUS Feedback": 15,
+                    "Infra": 10,
+                    "Meeds": 10,
+                    "Sistema Hospital": 5,
+                    "VISA": 5,
+                    "AB Território": 10
+                },
+                "proficiencias": {
+                    "AtendSaúde": 89,
+                    "AtendeEndemias": 70,
+                    "PEC": 70,
+                    "eSUS Feedback": 92,
+                    "Infra": 70,
+                    "Meeds": 70,
+                    "Sistema Hospital": 90,
+                    "VISA": 70,
+                    "AB Território": 70
+                },
+                "indice_ponderado_pct": 78.1
+            },
+            "blocos_pesos": {
+                "Ferramentas": 50,
+                "Competências": 50
+            },
+            "cultura_valores": "Alta",
+            "metas": [
+                {
+                    "titulo": "Curso chatGPT",
+                    "descricao": "dfndn",
+                    "indicador": "5",
+                    "responsavel": "Josinaldo Junho",
+                    "prazo": "30/09/2025",
+                    "is_curso": true,
+                    "show_to_tech": true,
+                    "curso_realizado": true,
+                    "curso_certificado": "certificados\\tecnico1_meta1_1757347607.png"
+                }
+            ],
+            "plano_desenvolvimento": {
+                "cursos": "fdnfdn",
+                "pontos_fortes": "dfan",
+                "pontos_melhorar": "adfnadfn",
+                "show_cursos_to_tech": true,
+                "show_pontos_fortes_to_tech": true,
+                "show_pontos_melhorar_to_tech": true
+            },
+            "feedback_final": "fdandfnadn",
+            "sugerir_pip": false,
+            "sugerir_destaque": false,
+            "proxima_revisao": null,
+            "exibir_metas_tecnico": true
+        },
+        {
+            "data": "08/09/2025 12:40",
+            "periodo_referencia": "September/2025",
+            "avaliador": "Luciana",
+            "periodo_aplicado": {
+                "inicio": "30/05/2022",
+                "fim": "04/09/2025",
+                "indicadores": {
+                    "qtd": 3321,
+                    "espera_media": 56.221251310730516,
+                    "duracao_media": 30.48959860383944,
+                    "rating_media": 4.712663755458515
+                }
+            },
+            "competencias": {
+                "habilidade_tecnica_atendimento": {
+                    "nota": 10
+                },
+                "suporte_nivel_1": {
+                    "nota": 10
+                },
+                "suporte_nivel_2": {
+                    "nota": 10
+                },
+                "infra_nivel_1": {
+                    "nota": 10
+                },
+                "habilidade_tecnica_treinamento": {
+                    "nota": 10
+                },
+                "capacitacoes_ferramentas": {
+                    "nota": 10
+                },
+                "nota_final": 10.0,
+                "conceito": "Excelente",
+                "estrelinhas": "⭐⭐⭐⭐⭐",
+                "nota_competencias_pond": 10.0
+            },
+            "desempenho_ferramentas": {
+                "pesos": {
+                    "AtendSaúde": 20,
+                    "AtendeEndemias": 5,
+                    "PEC": 20,
+                    "eSUS Feedback": 15,
+                    "Infra": 10,
+                    "Meeds": 10,
+                    "Sistema Hospital": 5,
+                    "VISA": 5,
+                    "AB Território": 10
+                },
+                "proficiencias": {
+                    "AtendSaúde": 100,
+                    "AtendeEndemias": 100,
+                    "PEC": 100,
+                    "eSUS Feedback": 100,
+                    "Infra": 100,
+                    "Meeds": 100,
+                    "Sistema Hospital": 100,
+                    "VISA": 100,
+                    "AB Território": 100
+                },
+                "indice_ponderado_pct": 100.0
+            },
+            "blocos_pesos": {
+                "Ferramentas": 50,
+                "Competências": 50
+            },
+            "cultura_valores": "Alta",
+            "metas": [
+                {
+                    "titulo": "Curso chatGPT",
+                    "descricao": "maximo",
+                    "indicador": "5",
+                    "responsavel": "Josinaldo Junho",
+                    "prazo": "08/09/2025",
+                    "is_curso": false,
+                    "show_to_tech": true,
+                    "curso_realizado": false,
+                    "curso_certificado": null
+                }
+            ],
+            "plano_desenvolvimento": {
+                "cursos": "XFMXFMXHGM",
+                "pontos_fortes": "GNMZFGM",
+                "pontos_melhorar": "ZNGZFGN",
+                "show_cursos_to_tech": true,
+                "show_pontos_fortes_to_tech": true,
+                "show_pontos_melhorar_to_tech": true
+            },
+            "feedback_final": "eghRGDF\\HZ",
+            "sugerir_pip": false,
+            "sugerir_destaque": false,
+            "proxima_revisao": null,
+            "exibir_metas_tecnico": true
+        },
+        {
+            "data": "08/09/2025 12:37",
+            "periodo_referencia": "September/2025",
+            "avaliador": "Luciana",
+            "periodo_aplicado": {
+                "inicio": "30/05/2022",
+                "fim": "04/09/2025",
+                "indicadores": {
+                    "qtd": 3321,
+                    "espera_media": 56.221251310730516,
+                    "duracao_media": 30.48959860383944,
+                    "rating_media": 4.712663755458515
+                }
+            },
+            "competencias": {
+                "habilidade_tecnica_atendimento": {
+                    "nota": 10
+                },
+                "suporte_nivel_1": {
+                    "nota": 10
+                },
+                "suporte_nivel_2": {
+                    "nota": 10
+                },
+                "infra_nivel_1": {
+                    "nota": 10
+                },
+                "habilidade_tecnica_treinamento": {
+                    "nota": 10
+                },
+                "capacitacoes_ferramentas": {
+                    "nota": 10
+                },
+                "nota_final": 10.0,
+                "conceito": "Excelente",
+                "estrelinhas": "⭐⭐⭐⭐⭐",
+                "nota_competencias_pond": 10.0
+            },
+            "desempenho_ferramentas": {
+                "pesos": {
+                    "AtendSaúde": 20,
+                    "AtendeEndemias": 5,
+                    "PEC": 20,
+                    "eSUS Feedback": 15,
+                    "Infra": 10,
+                    "Meeds": 10,
+                    "Sistema Hospital": 5,
+                    "VISA": 5,
+                    "AB Território": 10
+                },
+                "proficiencias": {
+                    "AtendSaúde": 100,
+                    "AtendeEndemias": 100,
+                    "PEC": 100,
+                    "eSUS Feedback": 100,
+                    "Infra": 100,
+                    "Meeds": 100,
+                    "Sistema Hospital": 100,
+                    "VISA": 100,
+                    "AB Território": 100
+                },
+                "indice_ponderado_pct": 100.0
+            },
+            "blocos_pesos": {
+                "Ferramentas": 50,
+                "Competências": 50
+            },
+            "cultura_valores": "Alta",
+            "metas": [
+                {
+                    "titulo": "Curso chatGPT",
+                    "descricao": "maximo",
+                    "indicador": "5",
+                    "responsavel": "Josinaldo Junho",
+                    "prazo": "08/09/2025",
+                    "is_curso": false,
+                    "show_to_tech": true,
+                    "curso_realizado": false,
+                    "curso_certificado": null
+                }
+            ],
+            "plano_desenvolvimento": {
+                "cursos": "XFMXFMXHGM",
+                "pontos_fortes": "GNMZFGM",
+                "pontos_melhorar": "ZNGZFGN",
+                "show_cursos_to_tech": true,
+                "show_pontos_fortes_to_tech": true,
+                "show_pontos_melhorar_to_tech": true
+            },
+            "feedback_final": "eghRGDF\\HZ",
+            "sugerir_pip": false,
+            "sugerir_destaque": false,
+            "proxima_revisao": null,
+            "exibir_metas_tecnico": true
+        },
+        {
+            "data": "08/09/2025 07:51",
+            "periodo_referencia": "September/2025",
+            "avaliador": "Luciana",
+            "competencias": {
+                "habilidade_tecnica_atendimento": {
+                    "nota": 8,
+                    "evidencias": ""
+                },
+                "suporte_nivel_1": {
+                    "nota": 9,
+                    "evidencias": ""
+                },
+                "suporte_nivel_2": {
+                    "nota": 9,
+                    "evidencias": ""
+                },
+                "infra_nivel_1": {
+                    "nota": 7,
+                    "evidencias": ""
+                },
+                "habilidade_tecnica_treinamento": {
+                    "nota": 8,
+                    "evidencias": ""
+                },
+                "capacitacoes_ferramentas": {
+                    "nota": 9,
+                    "evidencias": ""
+                },
+                "pesos_competencias": {
+                    "Habilidade técnica em atendimento": 1,
+                    "Suporte nível 1": 1,
+                    "Suporte nível 2": 1,
+                    "Infra nível 1": 1,
+                    "Habilidade técnica para treinamento": 1,
+                    "Consegue realizar capacitações das ferramentas": 1
+                },
+                "nota_competencias_ponderada": 8.33
+            },
+            "desempenho_ferramentas": {
+                "pesos": {
+                    "AtendSaúde": 20,
+                    "AtendeEndemias": 5,
+                    "PEC": 20,
+                    "eSUS Feedback": 15,
+                    "Infra": 10,
+                    "Meeds": 10,
+                    "Sistema Hospital": 5,
+                    "VISA": 5,
+                    "AB Território": 10
+                },
+                "proficiencias": {
+                    "AtendSaúde": 70,
+                    "AtendeEndemias": 70,
+                    "PEC": 70,
+                    "eSUS Feedback": 84,
+                    "Infra": 84,
+                    "Meeds": 70,
+                    "Sistema Hospital": 84,
+                    "VISA": 84,
+                    "AB Território": 70
+                },
+                "indice_ponderado_pct": 74.9
+            },
+            "cultura_valores": "Alta",
+            "metas": [
+                {
+                    "titulo": "chat",
+                    "descricao": "gpt",
+                    "indicador": "5",
+                    "responsavel": "Josinaldo Junho",
+                    "prazo": "08/09/2025",
+                    "is_curso": true,
+                    "realizado": true,
+                    "certificado_path": "uploads/certificados/tecnico1/meta1_20250908075228_Cuidado_da_mulher_na_prevencao_do_cancer_7_.pdf"
+                }
+            ],
+            "mostrar_metas_para_tecnico": true,
+            "plano_desenvolvimento": {
+                "cursos": "srghsh",
+                "pontos_fortes": "shdfhsdfb",
+                "pontos_melhorar": "dsbsdb"
+            },
+            "visibilidade_plano": {
+                "cursos": true,
+                "pontos_fortes": true,
+                "pontos_melhorar": true
+            },
+            "feedback_final": "dsbbsdbbfdsb",
+            "pesos_blocos": {
+                "Ferramentas": 50,
+                "Competências": 50
+            },
+            "nota_final": 7.91,
+            "conceito": "Bom",
+            "estrelinhas": "⭐⭐⭐",
+            "sugerir_pip": false,
+            "sugerir_destaque": false,
+            "proxima_revisao": null,
+            "indicadores_csv": {
+                "responsavel_vinculado": "Josinaldo Júnior",
+                "total_atendimentos": 4521,
+                "media_espera_segundos": 50.97210743801653,
+                "media_duracao_minutos": 29.4600858000858,
+                "media_avaliacao": 4.69620253164557
+            }
+        },
+        {
+            "data": "05/09/2025 13:29",
+            "periodo_referencia": "September/2025",
+            "avaliador": "Luciana",
+            "rubrica": {
+                "pesos": {
+                    "tecnico": 0.3,
+                    "qualidade": 0.2,
+                    "produtividade": 0.15,
+                    "cliente": 0.15,
+                    "colaboracao": 0.1,
+                    "protagonismo": 0.1
+                },
+                "notas": {
+                    "tecnico": 7,
+                    "qualidade": 8,
+                    "produtividade": 7,
+                    "cliente": 8,
+                    "colaboracao": 8,
+                    "protagonismo": 7
+                },
+                "nota_final": 7.45,
+                "conceito": "Bom",
+                "estrelinhas": "⭐⭐⭐",
+                "evidencias": {
+                    "tecnico": "",
+                    "qualidade": "",
+                    "produtividade": "",
+                    "cliente": "",
+                    "colaboracao": "",
+                    "protagonismo": ""
+                }
+            },
+            "cultura_valores": "Alta",
+            "metas": [
+                {
+                    "titulo": "terminar o curso",
+                    "descricao": "Terminar o curso em tempo",
+                    "indicador": "5",
+                    "responsavel": "Josinaldo Junho",
+                    "prazo": "15/10/2025"
+                }
+            ],
+            "plano_desenvolvimento": {
+                "cursos": "egWEG",
+                "pontos_fortes": "egWEG",
+                "pontos_melhorar": "ZDTJH"
+            },
+            "feedback_final": "JTRJRJ",
+            "sugerir_pip": false,
+            "sugerir_destaque": false,
+            "proxima_revisao": null,
+            "indicadores_csv": {
+                "responsavel_vinculado": "Josinaldo Júnior",
+                "total_atendimentos": 6516,
+                "media_espera_segundos": 44.79946619217082,
+                "media_duracao_minutos": 27.42724268177526,
+                "media_avaliacao": 4.633487979755378
+            }
+        }
+    ],
+    "tecnico2": [
+        {
+            "data": "05/09/2025 15:45",
+            "periodo_referencia": "Setembro",
+            "avaliador": "Luciana",
+            "rubrica": {
+                "pesos": {
+                    "tecnico": 0.3,
+                    "qualidade": 0.2,
+                    "produtividade": 0.15,
+                    "cliente": 0.15,
+                    "colaboracao": 0.1,
+                    "protagonismo": 0.1
+                },
+                "notas": {
+                    "tecnico": 7,
+                    "qualidade": 6,
+                    "produtividade": 7,
+                    "cliente": 8,
+                    "colaboracao": 8,
+                    "protagonismo": 7
+                },
+                "nota_final": 7.05,
+                "conceito": "Bom",
+                "estrelinhas": "⭐⭐⭐",
+                "evidencias": {
+                    "tecnico": "",
+                    "qualidade": "",
+                    "produtividade": "",
+                    "cliente": "",
+                    "colaboracao": "",
+                    "protagonismo": ""
+                }
+            },
+            "cultura_valores": "Média",
+            "metas": [
+                {
+                    "titulo": "Curso de chatGPT",
+                    "descricao": "Prazo de entrega at o final do mes",
+                    "indicador": "10",
+                    "responsavel": "Isis",
+                    "prazo": "30/09/2025"
+                }
+            ],
+            "plano_desenvolvimento": {
+                "cursos": "Praticar sobre o PEC",
+                "pontos_fortes": "Bom atendimento ao cliente\nÓtima resolução\n",
+                "pontos_melhorar": "Melhor ortografia"
+            },
+            "feedback_final": "Tenha um Excelente mês",
+            "sugerir_pip": true,
+            "sugerir_destaque": true,
+            "proxima_revisao": "06/10/2025",
+            "indicadores_csv": {
+                "responsavel_vinculado": "Isis Roberta",
+                "total_atendimentos": 3267,
+                "media_espera_segundos": 40.847412353923204,
+                "media_duracao_minutos": 27.560573056300267,
+                "media_avaliacao": 4.6848
+            }
+        }
+    ]
+}

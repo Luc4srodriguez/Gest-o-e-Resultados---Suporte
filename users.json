@@ -1,0 +1,26 @@
+[
+    {
+        "username": "coordenador",
+        "password": "123",
+        "role": "coordenador",
+        "name": "Luciana"
+    },
+    {
+        "username": "tecnico1",
+        "password": "123",
+        "role": "tecnico",
+        "name": "Josinaldo Junho"
+    },
+    {
+        "username": "tecnico2",
+        "password": "123",
+        "role": "tecnico",
+        "name": "Isis"
+    },
+    {
+        "username": "lucasfabricio",
+        "password": "123456",
+        "role": "tecnico",
+        "name": "Lucas Fabricio De Sousa Rodrigues"
+    }
+]
