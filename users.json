@@ -1,6 +1,6 @@
 [
     {
-        "username": "Coordenador",
+        "username": "coordenador",
         "password": "123",
         "role": "coordenador",
         "name": "Luciana"
@@ -25,4 +25,5 @@
     }
 
 ]
+
 
