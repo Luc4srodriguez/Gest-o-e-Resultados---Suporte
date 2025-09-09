@@ -7,25 +7,28 @@ import plotly.express as px
 import plotly.graph_objects as go
 import time
 import json
-from datetime import datetime, date, time as dtime
+from datetime import datetime, date, time as dtime, timedelta
 import unicodedata
 import difflib
 import os
 import tempfile
+import requests  # para ler direto do link
 from typing import Dict, Tuple, List, Optional
 
-# ============================ CONFIGURAÇÃO DA PÁGINA ============================
-st.set_page_config(
-    page_title="Novetech • Sistema Integrado",
-    page_icon="🚀",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
+# ============================ LINK FIXO (SALVO) ============================
 DEFAULT_CSV_URL = (
     "https://uploads-tiflux.s3.sa-east-1.amazonaws.com/dw/"
     "d54f42553a9baa18ab1411eaa048dd87dd047e54ff62ca9677408b6c6a0d9f39/"
-    "f3e399e20dcfd11907bcab6d93520e7b7641419373f107271c63260b571b7c2d/6595/chats_resume_latest.csv"
+    "f3e399e20dcfd11907bcab6d93520e7b7641419373f107271c63260b571b7c2d/6595/"
+    "chats_resume_latest.csv"
+)
+
+# ============================ CONFIGURAÇÃO DA PÁGINA ============================
+st.set_page_config(
+    page_title="Sistema de gestão operacional Novetech",
+    page_icon="🚀",
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
 # =============================== ESTADO INICIAL ================================
@@ -35,6 +38,7 @@ def ss_setdefault(key, value):
 
 ss_setdefault("kpi_alias_map", {})
 ss_setdefault("theme_choice", "Escuro (alto contraste)")
+ss_setdefault("csv_url", DEFAULT_CSV_URL)  # manter link salvo
 
 # =============================== TEMA / ESTILO ================================
 THEME = {
@@ -80,26 +84,16 @@ def apply_theme():
       box-shadow: 0 1px 2px rgba(2,6,23,0.08);
       margin-bottom: 14px;
     }}
-    .block-help {{
-      font-size: 0.9rem; color: var(--muted); margin-top: -6px; margin-bottom: 6px;
-    }}
-    .soft-divider {{
-      border: none; border-top: 1px solid rgba(148,163,184,0.25); margin: 10px 0;
-    }}
+    .block-help {{ font-size: 0.9rem; color: var(--muted); margin-top: -6px; margin-bottom: 6px; }}
+    .soft-divider {{ border: none; border-top: 1px solid rgba(148,163,184,0.25); margin: 10px 0; }}
     .stButton>button {{
       background: linear-gradient(180deg, var(--accent), var(--accentDark));
-      color: #fff !important;
-      border: 0;
-      border-radius: 10px;
-      padding: 0.55rem 0.9rem;
-      font-weight: 600;
+      color: #fff !important; border: 0; border-radius: 10px;
+      padding: 0.55rem 0.9rem; font-weight: 600;
     }}
-    .stButton>button:hover {{ filter: brightness(0.96); }}
     .btn-secondary>button {{
-      background: transparent !important;
-      color: var(--accent) !important;
-      border: 1px solid var(--accent) !important;
-      border-radius: 10px !important;
+      background: transparent !important; color: var(--accent) !important;
+      border: 1px solid var(--accent) !important; border-radius: 10px !important;
     }}
     .pill {{
       display:inline-block; padding: 4px 10px; border-radius:999px;
@@ -206,16 +200,7 @@ def _safe_filename(name: str) -> str:
     base = re.sub(r'[^A-Za-z0-9_.-]+', '_', base).strip('_')
     return base[:120] or "arquivo"
 
-def save_certificado(username: str, meta_index: int, uploaded_file) -> str:
-    os.makedirs(f'uploads/certificados/{username}', exist_ok=True)
-    ts = datetime.now().strftime('%Y%m%d%H%M%S')
-    fname = _safe_filename(uploaded_file.name)
-    path = f'uploads/certificados/{username}/meta{meta_index+1}_{ts}_{fname}'
-    with open(path,'wb') as f:
-        f.write(uploaded_file.getbuffer())
-    return path
-
-# ---------- leitura de CSV (robusta) ----------
+# ---------------- CSV robusto (arquivo e URL) ----------------
 def ler_csv_robusto(file_bytes: bytes) -> pd.DataFrame:
     tentativas = [
         {"sep": None, "engine": "python", "encoding": "utf-8"},
@@ -239,29 +224,12 @@ def ler_csv_robusto(file_bytes: bytes) -> pd.DataFrame:
             continue
     raise last_exc if last_exc else ValueError("Falha ao ler CSV.")
 
-def ler_csv_url(url: str) -> pd.DataFrame:
-    tentativas = [
-        {"sep": None, "engine": "python", "encoding": "utf-8"},
-        {"sep": ";", "engine": "c", "encoding": "utf-8"},
-        {"sep": ",", "engine": "c", "encoding": "utf-8"},
-        {"sep": "\t", "engine": "c", "encoding": "utf-8"},
-        {"sep": "|", "engine": "c", "encoding": "utf-8"},
-        {"sep": None, "engine": "python", "encoding": "utf-8-sig"},
-        {"sep": None, "engine": "python", "encoding": "latin1"},
-    ]
-    last_exc = None
-    for opts in tentativas:
-        try:
-            df = pd.read_csv(url, sep=opts["sep"], engine=opts["engine"],
-                             encoding=opts["encoding"], on_bad_lines="skip")
-            df.attrs["_read_opts_"] = {**opts, "source": "url"}
-            return df
-        except Exception as e:
-            last_exc = e
-            continue
-    raise last_exc if last_exc else ValueError("Falha ao ler CSV via URL.")
+def ler_csv_robusto_from_url(url: str) -> pd.DataFrame:
+    resp = requests.get(url, timeout=60)
+    resp.raise_for_status()
+    return ler_csv_robusto(resp.content)
 
-# ---------- transformações ----------
+# ---------------- Conversões / utilidades ----------------
 def _parse_hms(val):
     if pd.isna(val): return None
     s = str(val).strip()
@@ -355,41 +323,12 @@ def _estrela_por_nota(n):
     if n >= 6.0: return "⭐⭐"
     return "⭐"
 
-# ==================== PESOS: UTILITÁRIOS & PRESETS ============================
-PREETS_FILE = "presets_pesos.json"
+# ==================== FILTRO GLOBAL & KPIs (com período) ======================
+def period_bounds(start_date: date, end_date: date) -> Tuple[pd.Timestamp, pd.Timestamp]:
+    start_ts = pd.Timestamp.combine(start_date, dtime.min)
+    end_ts = pd.Timestamp.combine(end_date, dtime.max)
+    return start_ts, end_ts
 
-def load_presets() -> Dict:
-    if os.path.exists(PREETS_FILE):
-        try:
-            with open(PREETS_FILE,'r',encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
-            return {}
-    return {}
-
-def save_presets(data: Dict):
-    _atomic_write(PREETS_FILE, data)
-
-def normalize_weights(d: Dict[str,int]) -> Dict[str,float]:
-    s = sum(d.values()) or 1
-    return {k: v/s for k,v in d.items()}
-
-def ensure_sum_bar(values: List[int], label="Total"):
-    total = sum(values)
-    st.progress(min(total, 100)/100.0, text=f"{label}: {total} {'(OK)' if total==100 else '(ajuste necessário)'}")
-    if total != 100:
-        st.warning(f"O somatório precisa ser **100**. Atual: **{total}**.")
-
-def donut_weights(weights: Dict[str,int], title: str):
-    labels = list(weights.keys())
-    vals = list(weights.values())
-    fig = go.Figure(data=[go.Pie(labels=labels, values=vals, hole=.55)])
-    fig.update_traces(textinfo='percent+label')
-    fig.update_layout(title=title, margin=dict(t=30, b=10, l=10, r=10))
-    apply_plot_theme(fig)
-    st.plotly_chart(fig, use_container_width=True)
-
-# ==================== FILTRO & KPIs (com período) ============================
 def period_mask(series_dt: pd.Series, start_date: date, end_date: date) -> pd.Series:
     s = series_dt.copy()
     try:
@@ -400,8 +339,7 @@ def period_mask(series_dt: pd.Series, start_date: date, end_date: date) -> pd.Se
             s = s.dt.tz_localize(None)
         except Exception:
             pass
-    start_ts = pd.Timestamp.combine(start_date, dtime.min)
-    end_ts = pd.Timestamp.combine(end_date, dtime.max)
+    start_ts, end_ts = period_bounds(start_date, end_date)
     return s.between(start_ts, end_ts, inclusive="both")
 
 def compute_kpis_por_responsavel(df: pd.DataFrame):
@@ -449,9 +387,9 @@ def render_period_filter(df: pd.DataFrame, title="🗓️ Filtro de chats por pe
         return None, None, False
     min_date = valid_dt.min().date(); max_date = valid_dt.max().date()
     st.markdown("<div class='block-card'>", unsafe_allow_html=True)
-    st.markdown(f"#### {title}")
-    st.markdown("<div class='block-help'>O intervalo aqui afeta o Dashboard e os indicadores usados na Avaliação.</div>", unsafe_allow_html=True)
-    c1,c2 = st.columns([0.5,0.5])
+    st.markdown(f"#### {title}", unsafe_allow_html=True)
+    st.markdown("<div class='block-help'>O intervalo afeta as análises e a avaliação.</div>", unsafe_allow_html=True)
+    c1,c2,_ = st.columns([0.33,0.33,0.34])
     with c1:
         start_date = st.date_input("Data inicial", min_value=min_date, max_value=max_date,
                                    value=st.session_state.get(key_start, min_date), key=key_start)
@@ -467,6 +405,50 @@ def filter_df_by_period(df: pd.DataFrame, start_date: date, end_date: date) -> p
         return df.copy()
     mask = period_mask(df["created_dt"], start_date, end_date)
     return df.loc[mask].copy()
+
+# ==================== CARREGAMENTO AUTOMÁTICO DO LINK ====================
+def processar_df_base(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df.columns = df.columns.str.strip()
+    df = df.dropna(how="all")
+    colunas_necessarias = [
+        "name","group_attendants_name","client_name",
+        "services_catalog_name","services_catalog_area_name",
+        "services_catalog_item_name","ticket_title","duration",
+        "waiting_time","responsible","rating","created_at"
+    ]
+    df = df[df.apply(lambda row: linha_valida_em_colunas(row, colunas_necessarias), axis=1)]
+    df = df[[c for c in colunas_necessarias if c in df.columns]]
+
+    if "waiting_time" in df.columns:
+        df["tempo_espera_segundos"] = df["waiting_time"].apply(converter_para_segundos)
+    if "duration" in df.columns:
+        df["duracao_minutos"] = df["duration"].apply(converter_para_minutos)
+    if "rating" in df.columns:
+        df["rating"] = pd.to_numeric(df["rating"], errors="coerce")
+    if "created_at" in df.columns:
+        df["turno"] = df["created_at"].apply(definir_turno)
+        df["created_dt"] = pd.to_datetime(df["created_at"], errors="coerce")
+    else:
+        df["created_dt"] = pd.NaT
+    try:
+        if pd.api.types.is_datetime64tz_dtype(df["created_dt"]):
+            df["created_dt"] = df["created_dt"].dt.tz_convert(None)
+    except Exception:
+        try:
+            df["created_dt"] = df["created_dt"].dt.tz_localize(None)
+        except Exception:
+            pass
+    return df
+
+def carregar_dados_do_link(force=False):
+    if ("df_raw" not in st.session_state) or force:
+        try:
+            df = ler_csv_robusto_from_url(st.session_state.get("csv_url", DEFAULT_CSV_URL))
+            df = processar_df_base(df)
+            st.session_state["df_raw"] = df
+        except Exception as e:
+            st.error(f"Não foi possível carregar os dados do link. Detalhe: {e}")
 
 # ================================ COMPONENTES UI ================================
 def mostrar_tabela_grafico(df, col_name, title, emoji, cor, mostrar_todos=False):
@@ -493,7 +475,7 @@ def mostrar_tabela_grafico(df, col_name, title, emoji, cor, mostrar_todos=False)
         fig = px.bar(top_vals_df, x=col_name, y="count", labels={col_name:"", "count":"Quantidade"},
                      text="count", custom_data=["Percentual"])
         fig.update_traces(textposition='outside', marker_color=cor,
-                          hovertemplate='<b>%{x}</b><br>Contagem: %{y}<br>Percentual: %{customdata[0]:.2f}%%<extra></extra>')
+                          hovertemplate='<b>%{x}</b><br>Contagem: %{y}<br>Percentual: %{customdata[0]:.2f}%<extra></extra>')
         fig.update_layout(xaxis_tickangle=-15, margin=dict(t=25,l=10,r=10,b=20), height=360)
         apply_plot_theme(fig)
         st.plotly_chart(fig, use_container_width=True)
@@ -503,11 +485,11 @@ def mostrar_tabela_grafico(df, col_name, title, emoji, cor, mostrar_todos=False)
 def pagina_login():
     st.markdown("<div class='block-card'>", unsafe_allow_html=True)
     st.image("https://cdn-icons-png.flaticon.com/512/1827/1827978.png", width=90)
-    st.markdown("## Sistema de Avaliação — Novetech")
-    st.caption("Acesse com seu usuário e senha. Em caso de dúvidas, fale com o suporte interno.")
+    st.markdown("## Sistema de gestão operacional Novetech")
+    st.caption("Acesse com seu usuário e senha.")
     with st.form("login_form"):
         username = st.text_input("Usuário", key="login_user", help="Seu login cadastrado").lower()
-        password = st.text_input("Senha", type="password", key="login_pass", help="Use uma senha forte e não compartilhe.")
+        password = st.text_input("Senha", type="password", key="login_pass")
         cols = st.columns([1,1])
         with cols[0]:
             entrar = st.form_submit_button("Entrar")
@@ -522,6 +504,8 @@ def pagina_login():
                 st.session_state["logged_in"] = True
                 st.session_state["user_info"] = user_found
                 st.session_state["page"] = "menu"
+                # Carrega automaticamente do link ao logar:
+                carregar_dados_do_link(force=True)
                 st.success("Login realizado!")
                 time.sleep(0.3); st.rerun()
             else:
@@ -536,12 +520,12 @@ def pagina_menu_principal():
     menu_options = (
         {"avaliar_tecnicos":{"label":"Avaliação de Técnicos","icon":"📝"},
          "pesos":{"label":"Pesos","icon":"⚖️"},
-         "dashboard":{"label":"Análise de Dados","icon":"📊"},
+         "dashboard":{"label":"Análise de Dados — chats","icon":"📊"},
          "historico":{"label":"Histórico de Fichas","icon":"📂"},
          "usuarios":{"label":"Gerenciar Usuários","icon":"👥"}}
         if role=="coordenador"
         else {"minhas_fichas":{"label":"Minhas Fichas","icon":"📋"},
-              "dashboard":{"label":"Análise de Dados","icon":"📊"}}
+              "dashboard":{"label":"Análise de Dados — chats","icon":"📊"}}
     )
     cols = st.columns(min(5, len(menu_options)))
     for i,(page_key, page_info) in enumerate(menu_options.items()):
@@ -549,14 +533,11 @@ def pagina_menu_principal():
             st.markdown(f"**{page_info['icon']} {page_info['label']}**")
             if st.button("Abrir", key=f"open_{page_key}", use_container_width=True):
                 if page_key == "historico":
-                    st.session_state.page = "avaliar_tecnicos"
-                    st.session_state._subtab = "historico"
+                    st.session_state.page = "avaliar_tecnicos"; st.session_state._subtab = "historico"
                 elif page_key == "usuarios":
-                    st.session_state.page = "avaliar_tecnicos"
-                    st.session_state._subtab = "usuarios"
+                    st.session_state.page = "avaliar_tecnicos"; st.session_state._subtab = "usuarios"
                 elif page_key == "pesos":
-                    st.session_state.page = "avaliar_tecnicos"
-                    st.session_state._subtab = "pesos"
+                    st.session_state.page = "avaliar_tecnicos"; st.session_state._subtab = "pesos"
                 else:
                     st.session_state.page = page_key
                 st.rerun()
@@ -574,242 +555,186 @@ def criar_botao_voltar():
 def pagina_dashboard():
     criar_botao_voltar()
     st.markdown("<div class='block-card'>", unsafe_allow_html=True)
-    st.markdown("## 📊 Dashboard de Análise de Acionamentos")
-    st.caption("Carregue seu CSV ou informe uma URL. O filtro de período impacta todas as análises e a avaliação.")
-
-    col_up1, col_up2 = st.columns([0.5,0.5])
-    with col_up1:
-        uploaded_file = st.file_uploader(
-            "📎 Envie sua planilha (CSV)",
-            type=["csv"], label_visibility="visible",
-            help="CSV com cabeçalhos. Delimitador detectado automaticamente."
-        )
-    with col_up2:
-        st.text_input("🔗 URL do CSV", value=st.session_state.get("csv_url", DEFAULT_CSV_URL), key="csv_url")
-        if st.button("Carregar do link", use_container_width=True):
-            st.session_state["load_from_url"] = True
-
-    cclear1, cclear2 = st.columns([0.5,0.5])
-    with cclear1:
-        if st.button("Limpar dados carregados", use_container_width=True, key="btn_clear_data"):
-            if "df_raw" in st.session_state: del st.session_state["df_raw"]
-            st.success("Dados removidos."); time.sleep(0.2); st.rerun()
+    st.markdown("## 📊 Análise de Dados — chats")
+    st.caption(f"Fonte: **link salvo** ({st.session_state.get('csv_url','')}) — carregado automaticamente ao logar.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-    if not uploaded_file and not st.session_state.get("load_from_url", False) and "df_raw" not in st.session_state:
-        st.info("Aguardando upload ou URL para iniciar a análise.")
+    # Garante dados carregados
+    carregar_dados_do_link(force=False)
+    if "df_raw" not in st.session_state:
+        st.warning("Sem dados carregados do link.")
         return
+    df = st.session_state["df_raw"]
 
-    try:
-        if uploaded_file:
-            content = uploaded_file.read()
-            df = ler_csv_robusto(content)
-            opts = df.attrs.get("_read_opts_", {})
-            if opts:
-                st.success(f"Lido como **{opts.get('encoding')}** • sep **{opts.get('sep') or 'auto'}** • engine **{opts.get('engine')}**")
-            st.session_state.pop("load_from_url", None)
-        elif st.session_state.get("load_from_url", False):
-            url = st.session_state.get("csv_url", "").strip()
-            df = ler_csv_url(url)
-            opts = df.attrs.get("_read_opts_", {})
-            if opts:
-                st.success(f"URL carregada • **{opts.get('encoding')}** • sep **{opts.get('sep') or 'auto'}** • engine **{opts.get('engine')}**")
-            st.session_state.pop("load_from_url", None)
-        else:
-            df = st.session_state["df_raw"]
+    # Filtro de período
+    start_date, end_date, ok = render_period_filter(df, key_start="period_start", key_end="period_end")
+    df_f = filter_df_by_period(df, start_date, end_date) if ok else df
+    st.session_state["df_filtered"] = df_f
 
-        # limpeza e colunas básicas
-        df.columns = df.columns.str.strip()
-        df = df.dropna(how="all")
-        colunas_necessarias = [
-            "name","group_attendants_name","client_name",
-            "services_catalog_name","services_catalog_area_name",
-            "services_catalog_item_name","ticket_title","duration",
-            "waiting_time","responsible","rating","created_at"
-        ]
-        df = df[df.apply(lambda row: linha_valida_em_colunas(row, colunas_necessarias), axis=1)]
-        df = df[[c for c in colunas_necessarias if c in df.columns]]
+    # Exportar filtrado
+    st.markdown("<div class='block-card'>", unsafe_allow_html=True)
+    csv_bytes = df_f.to_csv(index=False).encode("utf-8")
+    st.download_button("⬇️ Baixar CSV filtrado", data=csv_bytes,
+                       file_name=f"acionamentos_filtrado_{datetime.now().strftime('%Y%m%d')}.csv")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-        if "waiting_time" in df.columns:
-            df["tempo_espera_segundos"] = df["waiting_time"].apply(converter_para_segundos)
-        if "duration" in df.columns:
-            df["duracao_minutos"] = df["duration"].apply(converter_para_minutos)
-        if "rating" in df.columns:
-            df["rating"] = pd.to_numeric(df["rating"], errors="coerce")
-        if "created_at" in df.columns:
-            df["turno"] = df["created_at"].apply(definir_turno)
-            df["created_dt"] = pd.to_datetime(df["created_at"], errors="coerce")
-        else:
-            df["created_dt"] = pd.NaT
+    # KPIs por responsável (para avaliação)
+    kpis_norm, labels_orig = compute_kpis_por_responsavel(df_f)
+    st.session_state["kpis_por_responsavel"] = kpis_norm
+    st.session_state["kpis_labels_orig"] = labels_orig
 
-        try:
-            if pd.api.types.is_datetime64tz_dtype(df["created_dt"]):
-                df["created_dt"] = df["created_dt"].dt.tz_convert(None)
-        except Exception:
-            try:
-                df["created_dt"] = df["created_dt"].dt.tz_localize(None)
-            except Exception:
-                pass
+    # --------- Resumo + Regras de cor/delta ----------
+    st.markdown("<div class='block-card'>", unsafe_allow_html=True)
+    st.markdown("### 📌 Resumo geral de sla's de atendimento suporte")
+    META_AVALIACAO, META_DURACAO_MINUTOS, META_ESPERA_SEGUNDOS = 4.8, 28.0, 20.0
+    media_rating = df_f["rating"].dropna().mean() if "rating" in df_f.columns else float('nan')
+    media_duracao = df_f["duracao_minutos"].dropna().mean() if "duracao_minutos" in df_f.columns else float('nan')
+    media_espera_segundos = df_f["tempo_espera_segundos"].dropna().mean() if "tempo_espera_segundos" in df_f.columns else float('nan')
+    total_sel = len(df_f)
 
-        st.session_state["df_raw"] = df
+    show_pct = st.checkbox("Exibir percentuais de atingimento", value=True, key="show_pct_dash")
+    c1,c2,c3,c4 = st.columns(4)
 
-        # Filtro de período
-        if "created_dt" in df.columns and not df["created_dt"].dropna().empty:
-            start_date, end_date, ok = render_period_filter(df, key_start="period_start", key_end="period_end")
-            df_f = filter_df_by_period(df, start_date, end_date) if ok else df
-        else:
-            st.warning("Sem datas válidas para filtrar."); df_f = df
+    with c1:
+        delta = (media_rating - META_AVALIACAO) if pd.notna(media_rating) else None
+        st.metric(f"⭐ Avaliação Média (Meta: {META_AVALIACAO})",
+                  f"{media_rating:.2f}" if pd.notna(media_rating) else "N/A",
+                  f"{delta:+.2f}" if delta is not None else None,
+                  delta_color="normal")
+        if show_pct and pd.notna(media_rating):
+            ating = media_rating / META_AVALIACAO if META_AVALIACAO>0 else 0
+            st.caption(f"Atingimento: **{ating:.1%}**")
 
-        st.session_state["df_filtered"] = df_f
+    with c2:
+        delta = (media_duracao - META_DURACAO_MINUTOS) if pd.notna(media_duracao) else None
+        st.metric(f"🕒 Duração TMA (Meta: {int(META_DURACAO_MINUTOS)} min)",
+                  formatar_tempo_minutos(media_duracao) if pd.notna(media_duracao) else "N/A",
+                  f"{delta:+.1f} min" if delta is not None else None,
+                  delta_color="inverse")  # > meta = pior = vermelho
+        if show_pct and pd.notna(media_duracao) and media_duracao>0:
+            ating = META_DURACAO_MINUTOS / media_duracao
+            st.caption(f"Atingimento: **{ating:.1%}**")
 
-        # Exportar CSV filtrado
-        st.markdown("<div class='block-card'>", unsafe_allow_html=True)
-        st.caption("Exportar dados do período:")
-        csv_bytes = df_f.to_csv(index=False).encode("utf-8")
-        st.download_button("⬇️ Baixar CSV filtrado", data=csv_bytes, file_name=f"acionamentos_filtrado_{datetime.now().strftime('%Y%m%d')}.csv")
-        st.markdown("</div>", unsafe_allow_html=True)
+    with c3:
+        delta = (media_espera_segundos - META_ESPERA_SEGUNDOS) if pd.notna(media_espera_segundos) else None
+        st.metric(f"⏳ Duração TME (Meta: {int(META_ESPERA_SEGUNDOS)} s)",
+                  formatar_tempo_minutos(media_espera_segundos/60) if pd.notna(media_espera_segundos) else "N/A",
+                  f"{delta:+.1f} s" if delta is not None else None,
+                  delta_color="inverse")  # > meta = pior = vermelho
+        if show_pct and pd.notna(media_espera_segundos) and media_espera_segundos>0:
+            ating = META_ESPERA_SEGUNDOS / media_espera_segundos
+            st.caption(f"Atingimento: **{ating:.1%}**")
 
-        # KPIs por responsável
-        kpis_norm, labels_orig = compute_kpis_por_responsavel(df_f)
-        st.session_state["kpis_por_responsavel"] = kpis_norm
-        st.session_state["kpis_labels_orig"] = labels_orig
+    with c4:
+        st.metric("Registros no período", f"{total_sel}")
 
-        # --------- Resumo (com regras de cor) ----------
-        st.markdown("<div class='block-card'>", unsafe_allow_html=True)
-        st.markdown("### 📌 Resumo geral de SLA’s de atendimento suporte (período filtrado)")
-        META_AVALIACAO, META_DURACAO_MINUTOS, META_ESPERA_SEGUNDOS = 4.8, 28.0, 20.0
+    st.markdown("</div>", unsafe_allow_html=True)
 
-        media_rating = df_f["rating"].dropna().mean() if "rating" in df_f.columns else float('nan')
-        media_duracao = df_f["duracao_minutos"].dropna().mean() if "duracao_minutos" in df_f.columns else float('nan')
-        media_espera_segundos = df_f["tempo_espera_segundos"].dropna().mean() if "tempo_espera_segundos" in df_f.columns else float('nan')
-        total_regs = int(df_f.shape[0])
+    # --------- Análises Detalhadas ----------
+    st.markdown("#### 🔍 Análises Detalhadas (período filtrado)")
+    tab1,tab2,tab3 = st.tabs(["🏢 Visão Geral","📦 Por Serviço","🙋 Por Responsável"])
+    with tab1:
+        if "turno" in df_f.columns:
+            mostrar_tabela_grafico(df_f, "turno", "Distribuição por Turno", "⏰", "#22C55E")
+        mostrar_tabela_grafico(df_f, "client_name", "Clientes que Mais Acionaram (Top 5)", "👤", "#3B82F6")
 
-        show_pct = st.checkbox("Exibir percentuais de atingimento", value=True, key="show_pct_dash")
+        # Clientes que Menos Acionaram (Bottom 5 > 0)
+        if "client_name" in df_f.columns:
+            vc = df_f["client_name"].value_counts()
+            vc = vc[vc>0].sort_values(ascending=True).head(5)
+            if not vc.empty:
+                df_bottom = vc.reset_index()
+                df_bottom.columns = ["client_name","count"]
+                st.markdown("<div class='block-card'><div class='keyline'><h3>👥 Clientes que Menos Acionaram (Bottom 5)</h3></div>", unsafe_allow_html=True)
+                colb1,colb2 = st.columns([0.46,0.54])
+                with colb1:
+                    st.dataframe(df_bottom.set_index("client_name"), use_container_width=True)
+                with colb2:
+                    figb = px.bar(df_bottom, x="client_name", y="count", text="count",
+                                  labels={"client_name":"", "count":"Quantidade"})
+                    figb.update_traces(textposition='outside', marker_color="#64748B")
+                    figb.update_layout(xaxis_tickangle=-15, margin=dict(t=25,l=10,r=10,b=20), height=360)
+                    apply_plot_theme(figb); st.plotly_chart(figb, use_container_width=True)
+                st.markdown("</div>", unsafe_allow_html=True)
 
-        c1, c2, c3, c4 = st.columns(4)
+    with tab2:
+        mostrar_tabela_grafico(df_f, "services_catalog_name", "Catálogos de Serviços Mais Usados", "📦", "#F59E0B")
+        mostrar_tabela_grafico(df_f, "services_catalog_item_name", "Itens do Catálogo Mais Solicitados", "🔧", "#EF4444")
+        # (pedido 02) — REMOVIDO: "Títulos de Tickets Mais Frequentes"
 
-        # Avaliação — verde apenas se bater meta (>=)
-        with c1:
-            st.markdown("##### Avaliação média")
-            delta = media_rating - META_AVALIACAO if pd.notna(media_rating) else None
-            st.metric(
-                label=f"⭐ Avaliação Média (Meta: {META_AVALIACAO})",
-                value=f"{media_rating:.2f}" if pd.notna(media_rating) else "N/A",
-                delta=f"{delta:+.2f}" if delta is not None else None,
-                delta_color="normal"
-            )
-            if show_pct and pd.notna(media_rating):
-                st.caption(f"Atingimento: **{(media_rating / META_AVALIACAO):.1%}**")
-
-        # TMA — verde apenas se média <= meta
-        with c2:
-            st.markdown("##### Duração TMA")
-            delta = media_duracao - META_DURACAO_MINUTOS if pd.notna(media_duracao) else None
-            st.metric(
-                label=f"🕒 Duração Média (Meta: {int(META_DURACAO_MINUTOS)} min)",
-                value=(formatar_tempo_minutos(media_duracao) if pd.notna(media_duracao) else "N/A"),
-                delta=(f"{delta:+.1f} min" if delta is not None else None),
-                delta_color="inverse"
-            )
-            if show_pct and pd.notna(media_duracao) and media_duracao > 0:
-                st.caption(f"Atingimento: **{(META_DURACAO_MINUTOS / media_duracao):.1%}**")
-
-        # TME — verde apenas se média <= meta
-        with c3:
-            st.markdown("##### Duração TME")
-            delta = media_espera_segundos - META_ESPERA_SEGUNDOS if pd.notna(media_espera_segundos) else None
-            st.metric(
-                label=f"⏳ Espera Média (Meta: {int(META_ESPERA_SEGUNDOS)} s)",
-                value=(formatar_tempo_minutos(media_espera_segundos/60) if pd.notna(media_espera_segundos) else "N/A"),
-                delta=(f"{delta:+.1f} s" if delta is not None else None),
-                delta_color="inverse"
-            )
-            if show_pct and pd.notna(media_espera_segundos) and media_espera_segundos > 0:
-                st.caption(f"Atingimento: **{(META_ESPERA_SEGUNDOS / media_espera_segundos):.1%}**")
-
-        with c4:
-            st.markdown("##### Registros")
-            st.metric("💬 Registros de chats no período", f"{total_regs:,}".replace(",", "."))
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        # --------- Análises Detalhadas ----------
-        st.markdown("#### 🔍 Análises Detalhadas (período filtrado)")
-        tab1,tab2,tab3 = st.tabs(["🏢 Visão Geral","📦 Por Serviço","🙋 Por Responsável"])
-        with tab1:
-            if "turno" in df_f.columns:
-                mostrar_tabela_grafico(df_f, "turno", "Distribuição por Turno", "⏰", "#22C55E")
-            mostrar_tabela_grafico(df_f, "client_name", "Clientes que Mais Acionaram", "👤", "#3B82F6")
-        with tab2:
-            mostrar_tabela_grafico(df_f, "services_catalog_name", "Catálogos de Serviços Mais Usados (Top 5)", "📦", "#F59E0B")
-            mostrar_tabela_grafico(df_f, "services_catalog_item_name", "Itens do Catálogo Mais Solicitados (Top 5)", "🔧", "#EF4444")
-            mostrar_tabela_grafico(df_f, "ticket_title", "Títulos de Tickets Mais Frequentes (Top 5)", "📌", "#10B981")
-        with tab3:
+    with tab3:
+        # 1) Tabela + gráfico de quantidade por responsável (todos) + gráfico top 20 corrigido
+        if "responsible" in df_f.columns:
+            # card com tabela + gráfico (todos)
             mostrar_tabela_grafico(df_f, "responsible", "Responsáveis com Mais Atendimentos", "🙋", "#0EA5E9", mostrar_todos=True)
 
-            # Gráficos por responsável
-            if "tempo_espera_segundos" in df_f.columns:
-                st.markdown("<div class='block-card'>", unsafe_allow_html=True)
-                st.subheader("⏳ Média de Tempo de Espera por Responsável")
-                m1 = df_f.groupby("responsible")["tempo_espera_segundos"].mean().dropna().reset_index()
-                m1["Tempo Formatado"] = (m1["tempo_espera_segundos"]/60).apply(formatar_tempo_minutos)
-                fig = px.bar(m1.sort_values("tempo_espera_segundos"),
-                             x="responsible", y="tempo_espera_segundos", text="Tempo Formatado",
-                             labels={"tempo_espera_segundos":"Tempo Médio (s)","responsible":"Responsável"})
+            # gráfico corrigido (top 20) como na imagem
+            st.markdown("<div class='block-card'>", unsafe_allow_html=True)
+            st.subheader("🙋 Atendimentos por Responsável — Top 20")
+            resp_counts = (
+                df_f["responsible"].astype(str).str.strip()
+                .replace("", pd.NA).dropna()
+                .value_counts().head(20).reset_index()
+            )
+            resp_counts.columns = ["Responsável","Quantidade"]
+            fig_top = px.bar(resp_counts, x="Responsável", y="Quantidade",
+                             text="Quantidade", labels={"Responsável":"","Quantidade":"Quantidade"})
+            fig_top.update_traces(textposition="outside", marker_color="#60a5fa")
+            fig_top.update_layout(xaxis_tickangle=-35, margin=dict(t=35,l=10,r=10,b=80), height=420)
+            apply_plot_theme(fig_top); st.plotly_chart(fig_top, use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        # 2) Média de Espera por responsável (tabela + gráfico)
+        if "tempo_espera_segundos" in df_f.columns and "responsible" in df_f.columns:
+            st.markdown("<div class='block-card'><div class='keyline'><h3>⏳ Média de Tempo de Espera por Responsável</h3></div>", unsafe_allow_html=True)
+            m1 = df_f.groupby("responsible")["tempo_espera_segundos"].mean().dropna().reset_index()
+            m1.columns = ["Responsável","Tempo Médio (s)"]
+            m1["Tempo (mm:ss)"] = (m1["Tempo Médio (s)"]/60).apply(formatar_tempo_minutos)
+            m1_sorted = m1.sort_values("Tempo Médio (s)")
+            c1,c2 = st.columns([0.46,0.54])
+            with c1:
+                st.dataframe(m1_sorted.set_index("Responsável"), use_container_width=True)
+            with c2:
+                fig = px.bar(m1_sorted.head(20), x="Responsável", y="Tempo Médio (s)", text="Tempo (mm:ss)")
                 fig.update_traces(textposition="outside", marker_color="#8b99ae")
+                fig.update_layout(xaxis_tickangle=-30, margin=dict(t=25,l=10,r=10,b=70), height=420)
                 apply_plot_theme(fig); st.plotly_chart(fig, use_container_width=True)
-                st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
-            if "duracao_minutos" in df_f.columns:
-                st.markdown("<div class='block-card'>", unsafe_allow_html=True)
-                st.subheader("🕒 Média de Duração por Responsável")
-                m2 = df_f.groupby("responsible")["duracao_minutos"].mean().dropna().reset_index()
-                m2["Duração Formatada"] = m2["duracao_minutos"].apply(formatar_tempo_minutos)
-                fig = px.bar(m2.sort_values("duracao_minutos"),
-                             x="responsible", y="duracao_minutos", text="Duração Formatada",
-                             labels={"duracao_minutos":"Duração Média (min)","responsible":"Responsável"})
+        # 3) Média de Duração por responsável (tabela + gráfico)
+        if "duracao_minutos" in df_f.columns and "responsible" in df_f.columns:
+            st.markdown("<div class='block-card'><div class='keyline'><h3>🕒 Média de Duração por Responsável</h3></div>", unsafe_allow_html=True)
+            m2 = df_f.groupby("responsible")["duracao_minutos"].mean().dropna().reset_index()
+            m2.columns = ["Responsável","Duração Média (min)"]
+            m2["Duração (mm:ss)"] = m2["Duração Média (min)"].apply(formatar_tempo_minutos)
+            m2_sorted = m2.sort_values("Duração Média (min)")
+            c1,c2 = st.columns([0.46,0.54])
+            with c1:
+                st.dataframe(m2_sorted.set_index("Responsável"), use_container_width=True)
+            with c2:
+                fig = px.bar(m2_sorted.head(20), x="Responsável", y="Duração Média (min)", text="Duração (mm:ss)")
                 fig.update_traces(textposition="outside", marker_color="#60a5fa")
+                fig.update_layout(xaxis_tickangle=-30, margin=dict(t=25,l=10,r=10,b=70), height=420)
                 apply_plot_theme(fig); st.plotly_chart(fig, use_container_width=True)
-                st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
-            if "rating" in df_f.columns:
-                st.markdown("<div class='block-card'>", unsafe_allow_html=True)
-                st.subheader("🌟 Média de Avaliação por Responsável")
-                m3 = df_f.groupby("responsible")["rating"].mean().dropna().reset_index()
-                fig = px.bar(m3.sort_values("rating"),
-                             x="responsible", y="rating",
-                             text=m3["rating"].round(2),
-                             labels={"responsible":"Responsável","rating":"Média de Avaliação"})
+        # 4) Média de Avaliação por responsável (tabela + gráfico)
+        if "rating" in df_f.columns and "responsible" in df_f.columns:
+            st.markdown("<div class='block-card'><div class='keyline'><h3>🌟 Média de Avaliação por Responsável</h3></div>", unsafe_allow_html=True)
+            m3 = df_f.groupby("responsible")["rating"].mean().dropna().reset_index()
+            m3.columns = ["Responsável","Média de Avaliação"]
+            m3_sorted = m3.sort_values("Média de Avaliação")
+            c1,c2 = st.columns([0.46,0.54])
+            with c1:
+                st.dataframe(m3_sorted.set_index("Responsável").round(2), use_container_width=True)
+            with c2:
+                fig = px.bar(m3_sorted.head(20), x="Responsável", y="Média de Avaliação",
+                             text=m3_sorted.head(20)["Média de Avaliação"].round(2))
                 fig.update_traces(textposition="outside", marker_color="#f59e0b")
-                fig.update_layout(yaxis=dict(tickformat=".2f"))
+                fig.update_layout(yaxis=dict(tickformat=".2f"),
+                                  xaxis_tickangle=-30, margin=dict(t=25,l=10,r=10,b=70), height=420)
                 apply_plot_theme(fig); st.plotly_chart(fig, use_container_width=True)
-                st.markdown("</div>", unsafe_allow_html=True)
-
-            # --------- NOVO: Top 5 catálogos por técnico ---------
-            if "services_catalog_name" in df_f.columns and "responsible" in df_f.columns:
-                st.markdown("<div class='block-card'>", unsafe_allow_html=True)
-                st.subheader("📦 Top 5 catálogos de serviços por técnico")
-                grp = (df_f
-                       .groupby(["responsible","services_catalog_name"])
-                       .size().reset_index(name="count"))
-                responsaveis = sorted(grp["responsible"].unique().tolist())
-                sel = st.selectbox("Escolha um técnico", options=["Todos"] + responsaveis, index=0, key="sel_top5_resp")
-                if sel == "Todos":
-                    for resp in responsaveis:
-                        sub = grp[grp["responsible"]==resp].sort_values("count", ascending=False).head(5)
-                        if sub.empty: continue
-                        with st.expander(f"{resp} — Top 5 catálogos"):
-                            st.table(sub.rename(columns={"services_catalog_name":"Catálogo","count":"Qtd"})[["Catálogo","Qtd"]].reset_index(drop=True))
-                else:
-                    sub = grp[grp["responsible"]==sel].sort_values("count", ascending=False).head(5)
-                    if sub.empty:
-                        st.info("Sem registros para este técnico no período.")
-                    else:
-                        st.table(sub.rename(columns={"services_catalog_name":"Catálogo","count":"Qtd"})[["Catálogo","Qtd"]].reset_index(drop=True))
-                st.markdown("</div>", unsafe_allow_html=True)
-
-    except Exception as e:
-        st.error(f"❌ Erro ao processar o arquivo. Detalhe: {e}")
+            st.markdown("</div>", unsafe_allow_html=True)
 
 # ----------------------- AVALIAÇÃO / COORDENADOR -------------------------------
 def pagina_coordenador():
@@ -837,14 +762,14 @@ def pagina_coordenador():
 
         df_base = st.session_state.get("df_raw")
         if isinstance(df_base, pd.DataFrame):
-            start_date, end_date, ok = render_period_filter(df_base, title="🗓️ Filtro de chats por período (Avaliação)",
+            start_date, end_date, ok = render_period_filter(df_base, title="🗓️ Filtro de chats por período",
                                                             key_start="period_start", key_end="period_end")
             df_filtrado = filter_df_by_period(df_base, start_date, end_date) if ok else df_base
             kpis_norm, labels_orig = compute_kpis_por_responsavel(df_filtrado)
             st.session_state["kpis_por_responsavel"] = kpis_norm
             st.session_state["kpis_labels_orig"] = labels_orig
         else:
-            st.info("Para KPIs do CSV na ficha, carregue um arquivo/URL em **📊 Dashboard**.")
+            st.info("Para KPIs do CSV na ficha, carregue o link em **📊 Análise**.")
             kpis_norm, labels_orig = {}, []
 
         users, fichas = load_users(), load_fichas()
@@ -854,8 +779,7 @@ def pagina_coordenador():
             return
 
         st.markdown("<div class='block-card'>", unsafe_allow_html=True)
-        tecnico_nome = st.selectbox("Selecione um Técnico", [t['name'] for t in tecnicos], key="select_tecnico_aval",
-                                    help="Procure pelo nome para filtrar.")
+        tecnico_nome = st.selectbox("Selecione um Técnico", [t['name'] for t in tecnicos], key="select_tecnico_aval")
         st.markdown("</div>", unsafe_allow_html=True)
         tecnico = next((t for t in tecnicos if t['name']==tecnico_nome), None)
 
@@ -879,7 +803,7 @@ def pagina_coordenador():
             st.success(f"Indicadores (período filtrado) encontrados para **{kpi.get('responsavel_label','')}**.")
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # Indicadores do Técnico — Período aplicado
+        # Bloco de Indicadores do Técnico — Período aplicado
         st.markdown("<div class='block-card'>", unsafe_allow_html=True)
         st.markdown("#### 📌 Indicadores do Técnico — Período aplicado")
         c1,c2,c3,c4 = st.columns(4)
@@ -1142,44 +1066,8 @@ def pagina_coordenador():
                     st.success(f"Ficha de {tecnico['name']} salva com sucesso!")
                     time.sleep(0.3); st.rerun()
 
-    # ====================== PESOS ======================
+    # ====================== PESOS (aba principal) ======================
     with tab_pesos:
-        st.markdown("<div class='block-card'>", unsafe_allow_html=True)
-        st.markdown("#### 🎛️ Presets de Pesos")
-        presets = load_presets()
-        preset_names = ["—"] + list(presets.keys())
-        cpr1,cpr2,cpr3,cpr4 = st.columns([0.32,0.22,0.22,0.24])
-        with cpr1:
-            selected_preset = st.selectbox("Carregar preset", preset_names, index=0, key="preset_sel")
-        with cpr2:
-            if st.button("Aplicar preset", use_container_width=True):
-                if selected_preset != "—":
-                    data = presets[selected_preset]
-                    st.session_state["pesos_ferramentas"] = data.get("pesos_ferramentas", st.session_state["pesos_ferramentas"])
-                    st.session_state["pesos_competencias"] = data.get("pesos_competencias", st.session_state["pesos_competencias"])
-                    st.session_state["pesos_blocos"] = data.get("pesos_blocos", st.session_state["pesos_blocos"])
-                    st.success(f"Preset '{selected_preset}' aplicado.")
-                    safe_rerun()
-        with cpr3:
-            new_name = st.text_input("Salvar como (nome do preset)", key="preset_new_name", placeholder="Ex.: Padrão trimestre")
-        with cpr4:
-            if st.button("💾 Salvar preset", use_container_width=True):
-                if new_name.strip():
-                    presets[new_name.strip()] = {
-                        "pesos_ferramentas": st.session_state["pesos_ferramentas"],
-                        "pesos_competencias": st.session_state["pesos_competencias"],
-                        "pesos_blocos": st.session_state["pesos_blocos"]
-                    }
-                    save_presets(presets)
-                    st.success("Preset salvo."); safe_rerun()
-                else:
-                    st.warning("Informe um nome para o preset.")
-        if selected_preset != "—":
-            if st.button("🗑️ Excluir preset selecionado"):
-                presets.pop(selected_preset, None); save_presets(presets)
-                st.success("Preset excluído."); safe_rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
-
         st.markdown("<div class='block-card'>", unsafe_allow_html=True)
         st.markdown("#### 🧩 Pesos — Proficiência nas Ferramentas (%)")
         nova_pf = {}
@@ -1193,8 +1081,6 @@ def pagina_coordenador():
                     help="Peso relativo desta ferramenta (%)"
                 )
         st.session_state["pesos_ferramentas"] = nova_pf
-        ensure_sum_bar(list(nova_pf.values()), "Somatório de Pesos (Ferramentas)")
-        donut_weights(nova_pf, "Distribuição de Pesos — Ferramentas")
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("<div class='block-card'>", unsafe_allow_html=True)
@@ -1210,7 +1096,6 @@ def pagina_coordenador():
                     help="Peso relativo desta competência (normalizado automaticamente)"
                 )
         st.session_state["pesos_competencias"] = n_pc
-        donut_weights(n_pc, "Distribuição de Pesos — Competências (relativos)")
         st.caption("Os pesos de competências são normalizados na hora do cálculo.")
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1221,7 +1106,6 @@ def pagina_coordenador():
             w_ferr = st.number_input("Ferramentas (%)", 0, 100, value=st.session_state["pesos_blocos"]["Ferramentas"], key="peso_blocos_ferr")
         with colb2:
             w_comp = st.number_input("Competências (%)", 0, 100, value=st.session_state["pesos_blocos"]["Competências"], key="peso_blocos_comp")
-        ensure_sum_bar([w_ferr, w_comp], "Somatório de Pesos (Blocos)")
         if w_ferr + w_comp == 100:
             st.session_state["pesos_blocos"] = {"Ferramentas": int(w_ferr), "Competências": int(w_comp)}
             st.success("Pesos atualizados.")
@@ -1327,10 +1211,9 @@ def pagina_coordenador():
                                 if pdv.get("pontos_fortes"): st.write(f"- Pontos Fortes: {pdv.get('pontos_fortes')}")
                                 if pdv.get("pontos_melhorar"): st.write(f"- Pontos a Melhorar: {pdv.get('pontos_melhorar')}")
                                 st.markdown("</div>", unsafe_allow_html=True)
-
                             st.markdown(f"> *Feedback Final:* {ficha.get('feedback_final','—')}")
                 else:
-                    st.info("Nenhuma ficha encontrado para este técnico.")
+                    st.info("Nenhuma ficha encontrada para este técnico.")
 
     # ====================== GERENCIAR USUÁRIOS ======================
     with tab_user:
@@ -1441,8 +1324,13 @@ def pagina_tecnico():
                                 metas_local[i]["realizado"] = bool(new_done)
                                 if cert_file is not None:
                                     try:
-                                        saved = save_certificado(username, i, cert_file)
-                                        metas_local[i]["certificado_path"] = saved
+                                        os.makedirs(f'uploads/certificados/{username}', exist_ok=True)
+                                        ts = datetime.now().strftime('%Y%m%d%H%M%S')
+                                        fname = re.sub(r'[^A-Za-z0-9_.-]+', '_', cert_file.name)
+                                        path = f'uploads/certificados/{username}/meta{i+1}_{ts}_{fname}'
+                                        with open(path,'wb') as f:
+                                            f.write(cert_file.getbuffer())
+                                        metas_local[i]["certificado_path"] = path
                                         st.success("Status atualizado e certificado anexado.")
                                     except Exception as e:
                                         st.error(f"Falha ao salvar certificado: {e}")
@@ -1500,10 +1388,13 @@ if not st.session_state.get("logged_in", False):
         apply_theme()
     pagina_login()
 else:
+    # garante dados do link disponíveis
+    carregar_dados_do_link(force=False)
+
     top1, top2, top3 = st.columns([0.6, 0.25, 0.15])
     with top1:
         st.markdown(f"### Olá, {st.session_state['user_info']['name']}!")
-        st.caption("Bem-vindo(a) ao Sistema Integrado de Avaliação — Novetech.")
+        st.caption("Bem-vindo(a) ao Sistema de gestão operacional Novetech.")
     with top2:
         theme_sel = st.selectbox("Tema", ["Escuro (alto contraste)", "Claro (limpo)"], key="theme_choice")
         apply_theme()
